@@ -1,24 +1,27 @@
-import sys
-import os
-import sqlite3  # Библиотека для работы с БД
+try:
+    import sys
+    import os
+    import sqlite3  # Библиотека для работы с БД
 
-from googletrans import Translator  # Библиотека для перевода текста
-import pyttsx3  # Библиотека для произношения текста
-import speech_recognition as sr  # Библиотека для распознавания голоса
+    from googletrans import Translator  # Библиотека для перевода текста
+    import pyttsx3  # Библиотека для произношения текста
+    import speech_recognition as sr  # Библиотека для распознавания голоса
 
-
-# Библиотеки для работы приложения
-from PyQt5 import uic, QtGui
-from PyQt5.QtGui import QIcon, QFont
-from PyQt5.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QAction,
-    QFileDialog,
-    QTableWidgetItem,
-    QHeaderView,
-    QMessageBox,
-)
+    # Библиотеки для работы приложения
+    from PyQt5 import uic, QtGui
+    from PyQt5.QtGui import QIcon, QFont
+    from PyQt5.QtWidgets import (
+        QApplication,
+        QMainWindow,
+        QAction,
+        QFileDialog,
+        QTableWidgetItem,
+        QTableWidget,
+        QHeaderView,
+        QMessageBox,
+    )
+except ImportError as e:
+    print("Ненайден модуль", e.name)
 
 # Словарь с языками
 languages = {"Русский": "ru", "Английский": "en", "Японский": "ja", "Немецкий": "nl", "Китайский": "zh-cn"}
@@ -35,9 +38,9 @@ class MyWidget(QMainWindow):
         self.recognizer = (sr.Recognizer())  # инициализируем библиотеку "speech_recognition"
 
         self.max_symbols = 3100  # Максимальное количество символов, которое доступно для перевода
-        self.font_change_value = 800
         self.can_translate = True  # Можно ли перевести текст
-        self.current_font = QFont()
+        self.fontSize_change_value = 800 # Когда поле ввода содержит более N символов, то мы меняем размер шрифта
+        self.current_font = QFont() # Создаем переменную, внутри которой будем менять размер шрифта
 
 
         self.is_history_open = False  # Открыта ли история переводов
@@ -141,13 +144,14 @@ class MyWidget(QMainWindow):
     # Проверяем, вводит ли пользователь что-то прямо сейчас
     def text_changed(self):
         try:
-            text_len = len(self.inputText.toPlainText())
-
+            text_len = len(self.inputText.toPlainText()) # Длинная текста, который ввел пользователь
+            # Выводим соотношение на экран
             self.maxSymbols.setText(f"{text_len}/{self.max_symbols}")
+
             if text_len == 0:
                 self.outputText.setPlainText("")
-
-            if text_len > self.font_change_value:
+            # Меняем размер шрифта
+            if text_len > self.fontSize_change_value:
                 self.current_font.setPointSize(11)
             else:
                 self.current_font.setPointSize(12)
@@ -155,14 +159,17 @@ class MyWidget(QMainWindow):
             self.inputText.setFont(self.current_font)
             self.outputText.setFont(self.current_font)
 
+            # Проверяем, привышает ли длинна текста заданное число
+            # Если да, то блокируем функцию "translate"
             if text_len > self.max_symbols:
                 self.can_translate = False
             else:
                 self.can_translate = True
 
-            self.switch_saveBtn_icon()
+            self.switch_saveBtn_icon() # Если нужно, то меняем иконку кнопки
+
         except Exception as e:
-            print(e)
+            print(e, 1)
 
     # Перестановка полей местами
     def switch_languages(self):
@@ -173,13 +180,14 @@ class MyWidget(QMainWindow):
             self.outputLanguage.setCurrentText(temp_lang)
 
             # Смена текстов
-            temp_text = self.inputText.toPlainText()
-            self.inputText.setPlainText(self.outputText.toPlainText())
-            self.outputText.setPlainText(temp_text)
+            input_text, output_text = self.outputText.toPlainText(), self.inputText.toPlainText()
+            self.inputText.setPlainText(input_text)
+            self.outputText.setPlainText(output_text)
 
             self.translate()
+
         except Exception as e:
-            print(e)
+            print(e, 2)
 
     # Очистка обоих полей ввода
     def clear(self):
@@ -196,17 +204,20 @@ class MyWidget(QMainWindow):
     def translate(self):
         if self.can_translate:
             translator = Translator()
-            in_text = self.inputText.toPlainText()
-            in_lang = languages[self.inputLanguage.currentText()]
-            out_lang = languages[self.outputLanguage.currentText()]
+            in_text = self.inputText.toPlainText() # Текст из поля ввода
+            in_lang = languages[self.inputLanguage.currentText()] # Язык с которого переводим (ru/en/...)
+            out_lang = languages[self.outputLanguage.currentText()] # Язык на который переводим (ru/en/...)
             try:
+                # Запрос к гугл переводчику и занесение текста в поле вывода
+                print(in_text, in_lang, out_lang, "<---- Входные данные для перевода")
                 result = translator.translate(in_text, src=in_lang, dest=out_lang)
                 self.outputText.setPlainText(result.text)
 
+                # Сохраняем перевод в БД и обновляем виджеты
                 self.save_to_data_base()
                 self.update_table_widgets()
             except Exception as e:
-                print(e)
+                print(e, "<---- Ошибка")
 
     # Открыть файл для перевода
     def openFile(self):
@@ -232,9 +243,9 @@ class MyWidget(QMainWindow):
     # Воспроизведение текста
     def speak(self, text):
         try:
-            self.engine = pyttsx3.init()
-            self.engine.say(text)
-            self.engine.runAndWait()
+            self.engine = pyttsx3.init() # Инициализируем библиотеку pyttsx3
+            self.engine.say(text) # Запрос на воспроизведение текста
+            self.engine.runAndWait() # Запуск воспроизведения
         except Exception as e:
             print(f"Не удалось воспроизвести текст ({e})")
 
@@ -242,12 +253,12 @@ class MyWidget(QMainWindow):
     def voice_input(self, language):
         try:
             with sr.Microphone() as source:
-                lang = f"{language.upper()}-{language}"
-                audio = self.recognizer.listen(source)
-                text = self.recognizer.recognize_google(audio, language=lang)
+                lang = f"{language.upper()}-{language}" # Переписываем переменную language в формат "XY-xy"
+                audio = self.recognizer.listen(source) # Слушаем то что сказал пользователь
+                text = self.recognizer.recognize_google(audio, language=lang) # Конвертируем в текст
                 self.inputText.setPlainText(text)
         except Exception as e:
-            print(e)
+            print(e, 4)
 
     # Получение информации из поля ввода и текущие языки
     def get_data(self):
@@ -262,11 +273,10 @@ class MyWidget(QMainWindow):
     def save_to_data_base(self):
         data = self.get_data()
 
-        query = """SELECT saved FROM translations
+        isSaved_query = """SELECT saved FROM translations
                    WHERE text=? AND input_lang=? AND output_lang=?"""
-        saved = self.cur.execute(
-            query, data
-        ).fetchone()  # Получаем значение поля saved для данного перевода
+        # Получаем значение поля saved для данного перевода
+        saved = self.cur.execute(isSaved_query, data).fetchone()
 
         # Прооверяем, содержиться ли такой перевод в БД.
         # Если да, то переписываем его с текущим значением парметра "saved".
@@ -279,6 +289,7 @@ class MyWidget(QMainWindow):
         else:
             query = f"""INSERT INTO translations(text, input_lang, output_lang)
                         VALUES(?, ?, ?)"""
+
         self.cur.execute(query, data)
         self.con.commit()
 
@@ -287,14 +298,19 @@ class MyWidget(QMainWindow):
         data = self.get_data()
         query = """SELECT saved FROM translations
                    WHERE text=? AND input_lang=? AND output_lang=?"""
+        # Возвращает значение поля saved для данного перевода
         result = self.cur.execute(query, data).fetchone()
 
+        # Существует ли такое перевод в БД
         if result is not None:
             is_saved = result[0]
+            # Если существует, и saved = 1, то меням иконку на "active"
             if is_saved == 1:
                 self.saveButton.setIcon(QIcon("icons/active_star.png"))
+            # Если существует, и saved = 0, то меням иконку на "inactive"
             else:
                 self.saveButton.setIcon(QIcon("icons/inactive_star.png"))
+        # Если не существует, то меням иконку на "inactive"
         else:
             self.saveButton.setIcon(QIcon("icons/inactive_star.png"))
 
@@ -305,11 +321,15 @@ class MyWidget(QMainWindow):
             query = """SELECT id, saved FROM translations
                        WHERE text=? AND input_lang=? AND output_lang=?"""
 
+            # Возвращает id и saved для данного перевода
             id, result = self.cur.execute(query, data).fetchone()
+            # Узнаем на какое значение нужно изменить поле saved
             if result == 0:
                 saved = 1
             else:
                 saved = 0
+
+            # Меняем значения
             set_saved_query = f"""UPDATE translations
                                   SET saved = {saved}
                                   WHERE id = {id}"""
@@ -317,6 +337,7 @@ class MyWidget(QMainWindow):
             self.cur.execute(set_saved_query)
             self.con.commit()
 
+            # Сохраняем меняем иконку на кнопке "сохранить" и обновляем виджеты
             self.switch_saveBtn_icon()
             self.update_table_widgets()
         except:
@@ -388,7 +409,7 @@ class MyWidget(QMainWindow):
                 for j, elem in enumerate(row):
                     self.savedTableWidget.setItem(i, j, QTableWidgetItem(str(elem)))
         except Exception as e:
-            print(e)
+            print(e, 5)
 
     # Окно подтверждения и удаления соответственно
     def showDeleteDialog(self, what_delete: str):
@@ -401,18 +422,19 @@ class MyWidget(QMainWindow):
 
             returnValue = messageBox.exec()
             if returnValue == QMessageBox.Ok:
+                # Если удаляем историю:
                 if what_delete == "history":
                     query = """DELETE * FROM translations"""
+                # Если удаляем созраненные:
                 else:
                     query = """UPDATE translations
                                SET saved = 0
                                WHERE saved = 1"""
-                self.cur.execute(query)
-                self.con.commit()
 
                 self.cur.execute(query)
                 self.con.commit()
 
+                # Сохраняем меняем иконку на кнопке "сохранить" и обновляем виджеты
                 self.update_table_widgets()
                 self.switch_saveBtn_icon()
 
@@ -425,7 +447,7 @@ class MyWidget(QMainWindow):
         self.col = col
 
     # Устанавливает выбранный из истории или "сохраненных" перевод в соответствующие поля
-    def set_data_from_widget(self, widget, cols=3):
+    def set_data_from_widget(self, widget: QTableWidget, cols=3):
         # Функция для получения ключа из словаря languages
         def get_key(item):
             for i in languages:
@@ -436,11 +458,13 @@ class MyWidget(QMainWindow):
         data = []
         for col in range(cols):
             data.append(widget.item(self.row, col).text())
+
         text, input_lang, output_lang = data
         self.inputText.setPlainText(text)
         self.inputLanguage.setCurrentText(get_key(input_lang))
         self.outputLanguage.setCurrentText(get_key(output_lang))
 
+        # Переводим получившийся текст и обновляем иконку кнопки "сохранить"
         self.translate()
         self.switch_saveBtn_icon()
 

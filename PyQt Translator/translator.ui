@@ -628,6 +628,9 @@
            <property name="plainText">
             <string>Привет мир!</string>
            </property>
+           <property name="placeholderText">
+            <string>Введите текст сюда</string>
+           </property>
           </widget>
          </item>
          <item>
@@ -1045,7 +1048,7 @@
      <attribute name="title">
       <string>История</string>
      </attribute>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>10</x>
