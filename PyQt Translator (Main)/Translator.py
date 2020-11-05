@@ -22,21 +22,21 @@ try:
             QMessageBox,
         )
 
+    from Get_voices import Voices # Импортируем класс Voices из файла get_voices.py
+
 except ImportError as e:
     print("Не найден модуль", e.name)
-
 
 
 # Словарь с языками
 languages = {"Русский": "ru", "Английский": "en", "Японский": "ja", "Немецкий": "nl", "Китайский": "zh-cn"}
 
 # Словарь с голосами
-voices = {"ru": 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_RU-RU_IRINA_11.0',
-          "en": 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_EN-US_ZIRA_11.0',
-          "ja": 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_JA-JP_HARUKA_11.0'}
+voices = Voices.get_voices()
 
 
 class MyWidget(QMainWindow):
+    ############№##=-  ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ  -=###############
     def __init__(self):
         super().__init__()
         self.windows_width = 920 # Ширина окна по умолчанию
@@ -166,6 +166,8 @@ class MyWidget(QMainWindow):
         self.historyTableWidget.cellClicked.connect(self.cellClick)
         self.savedTableWidget.cellClicked.connect(self.cellClick)
 
+    ######################=-  ПОЛЕ ВВОДА  -=######################
+
     # Проверяем, вводит ли пользователь что-то прямо сейчас
     def text_changed(self):
         try:
@@ -196,57 +198,24 @@ class MyWidget(QMainWindow):
         except Exception as e:
             print(e, 1)
 
-    # Перестановка полей местами
-    def switch_languages(self):
+    # Голосовой ввод
+    def voice_input(self, language):
         try:
-            # Смена языков
-            temp_lang = self.inputLanguage.currentText()
-            self.inputLanguage.setCurrentText(self.outputLanguage.currentText())
-            self.outputLanguage.setCurrentText(temp_lang)
-
-            # Смена текстов
-            input_text, output_text = self.outputText.toPlainText(), self.inputText.toPlainText()
-            self.inputText.setPlainText(input_text)
-            self.outputText.setPlainText(output_text)
-
-            self.translate()
-
+            with sr.Microphone() as source:
+                lang = f"{language.upper()}-{language}"  # Переписываем переменную language в формат "XY-xy"
+                audio = self.recognizer.listen(source)  # Слушаем то что сказал пользователь
+                text = self.recognizer.recognize_google(audio, language=lang)  # Конвертируем в текст
+                self.inputText.setPlainText(text)
         except Exception as e:
-            print(e, 2)
+            print(e, 4)
 
     # Очистка обоих полей ввода
     def clear(self):
         self.inputText.setPlainText("")
         self.outputText.setPlainText("")
 
-    # Копирование переведенного текста
-    @staticmethod
-    def addToClipBoard(text):
-        print(text)
-        command = "echo " + text.strip() + "| clip"
-        os.system(command)
 
-    # Перевод
-    def translate(self):
-        if self.can_translate:
-            in_text = self.inputText.toPlainText() # Текст из поля ввода
-            in_lang = languages[self.inputLanguage.currentText()] # Язык с которого переводим (ru/en/...)
-            out_lang = languages[self.outputLanguage.currentText()] # Язык на который переводим (ru/en/...)
-            while True:
-                try:
-                    # Запрос к гугл переводчику и занесение текста в поле вывода
-                    #print(in_text, in_lang, out_lang, "<---- Входные данные для перевода")
-                    result = self.translator.translate(in_text, src=in_lang, dest=out_lang)
-                    self.outputText.setPlainText(result.text)
-
-                    # Сохраняем перевод в БД и обновляем виджеты
-                    self.save_to_data_base()
-                    self.update_table_widgets()
-
-                    break
-                except Exception as e:
-                    self.translator = Translator()
-                    print(e, "<---- Ошибка")
+    #######################=-  MENU BAR  -=#######################
 
     # Открыть файл для перевода
     def openFile(self):
@@ -268,6 +237,50 @@ class MyWidget(QMainWindow):
                 f.write(self.outputText.toPlainText())
         except:
             pass
+
+
+    #####################=-  ОБЩИЕ КНОПКИ  -=#####################
+    #############=-  (взаимодействие с обоими полями)  -=#############
+
+    # Перевод
+    def translate(self):
+        if self.can_translate:
+            in_text = self.inputText.toPlainText()  # Текст из поля ввода
+            in_lang = languages[self.inputLanguage.currentText()]  # Язык с которого переводим (ru/en/...)
+            out_lang = languages[self.outputLanguage.currentText()]  # Язык на который переводим (ru/en/...)
+            while True:
+                try:
+                    # Запрос к гугл переводчику и занесение текста в поле вывода
+                    # print(in_text, in_lang, out_lang, "<---- Входные данные для перевода")
+                    result = self.translator.translate(in_text, src=in_lang, dest=out_lang)
+                    self.outputText.setPlainText(result.text)
+
+                    # Сохраняем перевод в БД и обновляем виджеты
+                    self.save_to_data_base()
+                    self.update_table_widgets()
+
+                    break
+                except Exception as e:
+                    self.translator = Translator()
+                    print(e, "<---- Ошибка")
+
+    # Перестановка полей местами
+    def switch_languages(self):
+        try:
+            # Смена языков
+            temp_lang = self.inputLanguage.currentText()
+            self.inputLanguage.setCurrentText(self.outputLanguage.currentText())
+            self.outputLanguage.setCurrentText(temp_lang)
+
+            # Смена текстов
+            input_text, output_text = self.outputText.toPlainText(), self.inputText.toPlainText()
+            self.inputText.setPlainText(input_text)
+            self.outputText.setPlainText(output_text)
+
+            self.translate()
+
+        except Exception as e:
+            print(e, 2)
 
     # Воспроизведение текста
     def speak(self, text, language):
@@ -306,20 +319,22 @@ class MyWidget(QMainWindow):
                 self.engine.setProperty("voice", voices["ru"])
             self.engine.say(text)  # Запрос на воспроизведение текста
             self.engine.startLoop()  # Запуск воспроизведения
-        except Exception:
-            self.end_loop = True
-            # self.engine.endLoop()
 
-    # Голосовой ввод
-    def voice_input(self, language):
-        try:
-            with sr.Microphone() as source:
-                lang = f"{language.upper()}-{language}" # Переписываем переменную language в формат "XY-xy"
-                audio = self.recognizer.listen(source) # Слушаем то что сказал пользователь
-                text = self.recognizer.recognize_google(audio, language=lang) # Конвертируем в текст
-                self.inputText.setPlainText(text)
         except Exception as e:
-            print(e, 4)
+            self.end_loop = True
+
+
+    #####################=-  ПОЛЕ ВЫВОДА  -=#####################
+
+    # Копирование переведенного текста
+    @staticmethod
+    def addToClipBoard(text):
+        print(text)
+        command = "echo " + text.strip() + "| clip"
+        os.system(command)
+
+
+    ###################=-  ИСТОРИЯ ПРЕВОДОВ  -=###################
 
     # Получение информации из поля ввода и текущие языки
     def get_data(self):
