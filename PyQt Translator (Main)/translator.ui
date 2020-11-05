@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1200</width>
-    <height>510</height>
+    <height>652</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -599,6 +599,43 @@
        </item>
        <item>
         <widget class="QComboBox" name="outputLanguage">
+         <property name="palette">
+          <palette>
+           <active>
+            <colorrole role="Highlight">
+             <brush brushstyle="SolidPattern">
+              <color alpha="255">
+               <red>143</red>
+               <green>126</green>
+               <blue>126</blue>
+              </color>
+             </brush>
+            </colorrole>
+           </active>
+           <inactive>
+            <colorrole role="Highlight">
+             <brush brushstyle="SolidPattern">
+              <color alpha="255">
+               <red>143</red>
+               <green>126</green>
+               <blue>126</blue>
+              </color>
+             </brush>
+            </colorrole>
+           </inactive>
+           <disabled>
+            <colorrole role="Highlight">
+             <brush brushstyle="SolidPattern">
+              <color alpha="255">
+               <red>0</red>
+               <green>120</green>
+               <blue>215</blue>
+              </color>
+             </brush>
+            </colorrole>
+           </disabled>
+          </palette>
+         </property>
          <property name="font">
           <font>
            <pointsize>11</pointsize>
@@ -899,14 +936,14 @@
            <item>
             <widget class="QPushButton" name="historyButton">
              <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;История переводов&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;История переводов&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
               <string/>
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>Icons/history.png</normaloff>Icons/history.png</iconset>
+               <normaloff>Icons/history_inactive.png</normaloff>Icons/history_inactive.png</iconset>
              </property>
              <property name="iconSize">
               <size>
@@ -941,7 +978,7 @@
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>Icons/inactive_star.png</normaloff>Icons/inactive_star.png</iconset>
+               <normaloff>Icons/star_inactive.png</normaloff>Icons/star_inactive.png</iconset>
              </property>
              <property name="iconSize">
               <size>

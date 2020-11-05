@@ -1,41 +1,57 @@
-print()
-import sys
-import os
-import sqlite3  # Библиотека для работы с БД
+try:
+    import sys
+    import os
+    import sqlite3  # Библиотека для работы с БД
 
-from googletrans import Translator  # Библиотека для перевода текста
-import pyttsx3  # Библиотека для произношения текста
-import speech_recognition as sr  # Библиотека для распознавания голоса
+    from googletrans import Translator  # Библиотека для перевода текста
+    import pyttsx3  # Библиотека для произношения текста
+    import speech_recognition as sr  # Библиотека для распознавания голоса
 
-# Библиотеки для работы приложения
-from PyQt5 import uic, QtGui
-from PyQt5.QtGui import QIcon, QFont
-from PyQt5.QtWidgets import (
-        QApplication,
-        QMainWindow,
-        QAction,
-        QFileDialog,
-        QTableWidgetItem,
-        QTableWidget,
-        QHeaderView,
-        QMessageBox,
-    )
+    # Библиотеки для работы приложения
+    from PyQt5 import uic, QtGui
+    from PyQt5.QtGui import QIcon, QFont
+    from PyQt5.QtWidgets import (
+            QApplication,
+            QMainWindow,
+            QPushButton,
+            QAction,
+            QFileDialog,
+            QTableWidgetItem,
+            QTableWidget,
+            QHeaderView,
+            QMessageBox,
+        )
+
+except ImportError as e:
+    print("Не найден модуль", e.name)
+
 
 
 # Словарь с языками
 languages = {"Русский": "ru", "Английский": "en", "Японский": "ja", "Немецкий": "nl", "Китайский": "zh-cn"}
 
+# Словарь с голосами
+voices = {"ru": 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_RU-RU_IRINA_11.0',
+          "en": 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_EN-US_ZIRA_11.0',
+          "ja": 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_JA-JP_HARUKA_11.0'}
+
 
 class MyWidget(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.windows_width = 920 # Ширина окна по умолчанию
+        self.windows_height = 510 # Высота окна по умолчанию
+        self.history_width = 280 #  Ширина вкладки с историей переводов
+
         uic.loadUi("translator.ui", self)  # Загружаем UI файл
-        self.setFixedSize(920, 510)  # Задаем фиксированный размер
+        self.setFixedSize(self.windows_width, self.windows_height)  # Задаем фиксированный размер
         self.setWindowIcon(QtGui.QIcon("Icons/icon.png"))  # Загружаем иконку приложения
         self.setWindowTitle("Translator")  # Устанавливаем название окна
 
-        self.recognizer = (sr.Recognizer())  # инициализируем библиотеку "speech_recognition"
-        self.translator = Translator()
+        self.translator = Translator() # Инициализируем Переводчик
+        self.recognizer = (sr.Recognizer())  # Инициализируем библиотеку "speech_recognition"
+        self.engine = pyttsx3.init()  # Инициализируем библиотеку pyttsx3
+        self.end_loop = False # Закониоось ли воспроизвенение текста
 
         self.max_symbols = 3100  # Максимальное количество символов, которое доступно для перевода
         self.can_translate = True  # Можно ли перевести текст
@@ -65,7 +81,7 @@ class MyWidget(QMainWindow):
         # только в случае изменения текста
         self.inputText.textChanged.connect(self.text_changed)
 
-        # -------------------- Кнопки --------------------
+        # ------------------- Кнопки ---------------------
         # ------------------------------------------------
 
         # Кнопка перевода
@@ -87,14 +103,23 @@ class MyWidget(QMainWindow):
         self.copyButton.clicked.connect(
             lambda: self.addToClipBoard(self.outputText.toPlainText())
         )
+
         # Кнопка воспроизведения введенного текста
         self.speakButton_in.clicked.connect(
-            lambda: self.speak(self.inputText.toPlainText())
+            lambda: self.speak(
+                self.inputText.toPlainText(),
+                languages[self.inputLanguage.currentText()],
+            )
         )
+
         # Кнопка воспроизведения переведенного текста
         self.speakButton_out.clicked.connect(
-            lambda: self.speak(self.outputText.toPlainText())
+            lambda: self.speak(
+                self.outputText.toPlainText(),
+                languages[self.outputLanguage.currentText()],
+            )
         )
+
         # Кнопка голосового ввода
         self.voiceInputButton.clicked.connect(
             lambda: self.voice_input(languages[self.inputLanguage.currentText()])
@@ -110,12 +135,12 @@ class MyWidget(QMainWindow):
             lambda: self.showDeleteDialog("saved")
         )
 
-        #
+        # Кнопка выбора перевода из всей истории
         self.chooseFromHistory.clicked.connect(
             lambda: self.set_data_from_widget(self.historyTableWidget)
         )
 
-        #
+        # Кнопка выбора перевода из "сохраненных"
         self.chooseFromSaved.clicked.connect(
             lambda: self.set_data_from_widget(self.savedTableWidget)
         )
@@ -197,6 +222,7 @@ class MyWidget(QMainWindow):
     # Копирование переведенного текста
     @staticmethod
     def addToClipBoard(text):
+        print(text)
         command = "echo " + text.strip() + "| clip"
         os.system(command)
 
@@ -210,7 +236,7 @@ class MyWidget(QMainWindow):
                 try:
                     # Запрос к гугл переводчику и занесение текста в поле вывода
                     #print(in_text, in_lang, out_lang, "<---- Входные данные для перевода")
-                    result = self.translator.translate(in_text, dest=out_lang)
+                    result = self.translator.translate(in_text, src=in_lang, dest=out_lang)
                     self.outputText.setPlainText(result.text)
 
                     # Сохраняем перевод в БД и обновляем виджеты
@@ -244,13 +270,45 @@ class MyWidget(QMainWindow):
             pass
 
     # Воспроизведение текста
-    def speak(self, text):
+    def speak(self, text, language):
         try:
-            self.engine = pyttsx3.init() # Инициализируем библиотеку pyttsx3
-            self.engine.say(text) # Запрос на воспроизведение текста
-            self.engine.runAndWait() # Запуск воспроизведения
+            # Завершение воспроизведения
+            def end_speaking():
+                self.engine.endLoop()
+                self.end_loop = False
+
+            # Срабатывает при запуске
+            def onStart(name):
+                pass
+
+            # Срабатывает постоянно до тех пор, пока не закнчится воспроизведение
+            def onWord(name, location, length):
+                if self.end_loop:
+                    end_speaking()
+
+            # Срабатывает при завершении воспроизведения
+            def onEnd(name, completed):
+                end_speaking()
+
         except Exception as e:
-            print(f"Не удалось воспроизвести текст ({e})")
+            print(e)
+
+        try:
+            # Привязываем функции к self.engine
+            self.engine.connect("started-utterance", onStart)
+            self.engine.connect("started-word", onWord)
+            self.engine.connect("finished-utterance", onEnd)
+
+            # Устанавливаем язык, на которм будет воспроизводится текст
+            if language in voices:
+                self.engine.setProperty("voice", voices[language])
+            else:
+                self.engine.setProperty("voice", voices["ru"])
+            self.engine.say(text)  # Запрос на воспроизведение текста
+            self.engine.startLoop()  # Запуск воспроизведения
+        except Exception:
+            self.end_loop = True
+            # self.engine.endLoop()
 
     # Голосовой ввод
     def voice_input(self, language):
@@ -309,13 +367,13 @@ class MyWidget(QMainWindow):
             is_saved = result[0]
             # Если существует, и saved = 1, то меням иконку на "active"
             if is_saved == 1:
-                self.saveButton.setIcon(QIcon("icons/active_star.png"))
+                self.saveButton.setIcon(QIcon("icons/star_active.png"))
             # Если существует, и saved = 0, то меням иконку на "inactive"
             else:
-                self.saveButton.setIcon(QIcon("icons/inactive_star.png"))
+                self.saveButton.setIcon(QIcon("icons/star_inactive.png"))
         # Если не существует, то меням иконку на "inactive"
         else:
-            self.saveButton.setIcon(QIcon("icons/inactive_star.png"))
+            self.saveButton.setIcon(QIcon("icons/star_inactive.png"))
 
     # Добавление перевода в "сохраненные"
     def save_translation(self):
@@ -350,10 +408,12 @@ class MyWidget(QMainWindow):
     def show_history(self):
         # Открываем или закрываем историю
         if not self.is_history_open:
-            self.setFixedSize(1200, 510)
+            self.setFixedSize(self.windows_width + self.history_width, self.windows_height)
+            self.historyButton.setIcon(QIcon('Icons/history_active.png'))
             self.is_history_open = True
         else:
-            self.setFixedSize(920, 510)
+            self.setFixedSize(self.windows_width, self.windows_height)
+            self.historyButton.setIcon(QIcon('Icons/history_inactive.png'))
             self.is_history_open = False
         self.update_table_widgets()
 
