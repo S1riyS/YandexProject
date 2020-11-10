@@ -20,7 +20,7 @@ STranslator uses a number of python libraries:
 
 ### Installation
 
-Dillinger requires [Python](https://www.python.org/downloads/release/python-380/) 3.8 to run.
+STranslator requires [Python](https://www.python.org/downloads/release/python-380/) 3.8 to run.
 
 
 ```sh
