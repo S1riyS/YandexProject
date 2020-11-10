@@ -30,7 +30,7 @@ pip install SpeechRecognition
 pip install PyQt5
 ```
 
-For **Speech Recognition** you aslo should intall **PyAudio**:
+For **Speech Recognition** you aslo should install **PyAudio**:
 Download from [this site](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio) file *PyAudio‑0.2.11‑cp38‑cp38‑win_amd64.whl*, where cp38 indicates the version of python3.8.x, and amd64 indicates the corresponding bit depth
 
 **Then**:
